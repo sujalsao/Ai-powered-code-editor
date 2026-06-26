@@ -1,14 +1,13 @@
 "use server";
-import { auth } from "../../../auth";
-import {db} from "@/lib/db";
+import { db } from "@/lib/db";
 
 export const getUserById = async (id: string) => {
-    try{
-        const user= await db.user.findUnique({
-            where: {id},
-            include:{
-                accounts:true
-            }           
+    try {
+        const user = await db.user.findUnique({
+            where: { id },
+            include: {
+                accounts: true
+            }
         })
         return user;
     } catch (error) {
@@ -18,18 +17,13 @@ export const getUserById = async (id: string) => {
 }
 
 export const getAccountByUserId = async (userId: string) => {
-    try{
+    try {
         const account = await db.account.findFirst({
-            where: {userId},
+            where: { userId },
         })
         return account;
-    }catch (error) {
+    } catch (error) {
         console.log(error);
         return null;
     }
-}
-
-export const currentUser = async () => {
-    const user= await auth();
-    return user?.user;
 }
