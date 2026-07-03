@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,21 +7,26 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum UserRole{
+enum UserRole {
   ADMIN
   USER
   PREMIUM_USER
 }
 
 model User {
-  id      String @id @default(auto()) @map("_id") @db.ObjectId
-  name    String?
-  email   String @unique
-  image   String?
+  id    String  @id @default(auto()) @map("_id") @db.ObjectId
+  name  String?
+  email String  @unique
+  image String?
 
   accounts Account[]
 
   role UserRole @default(USER)
+
+  myPlayground Playground[] @relation("OwnedPlaygrounds")
+
+  staredPlayground    Playground[] @relation("StarredPlaygrounds", fields: [staredPlaygroundIds], references: [id])
+  staredPlaygroundIds String[]     @db.ObjectId
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -41,12 +45,38 @@ model Account {
   scope             String?
   id_token          String? @db.String
   session_state     String?
- 
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
- 
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
- 
+
   @@unique([provider, providerAccountId])
   @@index([userId])
+}
+
+enum Templates {
+  REACT
+  REACTJS
+  EXPRESS
+  HONO
+  VUE
+  ANGULAR
+}
+
+model Playground {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  template    Templates @default(REACT)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  userId String @db.ObjectId
+  user   User   @relation("OwnedPlaygrounds", fields: [userId], references: [id], onDelete: Cascade)
+
+  starredBy    User[]   @relation("StarredPlaygrounds", fields: [starredByIds], references: [id])
+  starredByIds String[] @db.ObjectId
+
+  @@unique([userId, id])
 }
