@@ -24,9 +24,7 @@ model User {
   role UserRole @default(USER)
 
   myPlayground Playground[] @relation("OwnedPlaygrounds")
-
-  staredPlayground    Playground[] @relation("StarredPlaygrounds", fields: [staredPlaygroundIds], references: [id])
-  staredPlaygroundIds String[]     @db.ObjectId
+  Starmark     Starmark[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -75,8 +73,20 @@ model Playground {
   userId String @db.ObjectId
   user   User   @relation("OwnedPlaygrounds", fields: [userId], references: [id], onDelete: Cascade)
 
-  starredBy    User[]   @relation("StarredPlaygrounds", fields: [starredByIds], references: [id])
-  starredByIds String[] @db.ObjectId
+  Starmark Starmark[]
 
   @@unique([userId, id])
+}
+
+model Starmark {
+  id       String  @id @default(auto()) @map("_id") @db.ObjectId
+  isMarked Boolean @default(false)
+
+  userId       String @db.ObjectId
+  playgroundId String @db.ObjectId
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  playground Playground @relation(fields: [playgroundId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, playgroundId])
 }

@@ -11,7 +11,8 @@ export const getAllPlaygroundForUser=async()=>{
                 userId:user?.id   
             },
             include:{
-                user:true
+                user:true,
+                Starmark:true
             }
         });
         return playground
