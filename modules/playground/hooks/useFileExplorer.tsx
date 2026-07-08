@@ -28,6 +28,7 @@ interface FileExplorerState {
     openFile: (file: TemplateFile) => void;
     closeFile: (fileId: string) => void;
     closeAllFiles: () => void;
+    updateFileContent: (fileId: string, content: string) => void;
 }
 
 export const useFileExplorer = create<FileExplorerState>((set, get) => ({
@@ -84,4 +85,15 @@ export const useFileExplorer = create<FileExplorerState>((set, get) => ({
     },
 
     closeAllFiles: () => set({ openFiles: [], activefileId: null, editorContent: "" }),
+
+    updateFileContent: (fileId, content) => {
+        set((state) => ({
+            openFiles: state.openFiles.map((f) =>
+                f.id === fileId
+                    ? { ...f, content, hasUnsavedchanges: content !== f.originalContent }
+                    : f
+            ),
+            editorContent: state.activefileId === fileId ? content : state.editorContent,
+        }));
+    },
 }));
