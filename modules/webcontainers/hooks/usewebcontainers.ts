@@ -16,6 +16,19 @@ interface UseWebContainersReturn {
     destroy: () => Promise<void>;
 }
 
+// Module-level singleton: WebContainer.boot() may only be called once per
+// page session. Cache the boot promise so repeated hook mounts (including
+// React Strict Mode's dev double-invoke) reuse the same instance instead
+// of re-booting.
+let webContainerBootPromise: Promise<WebContainer> | null = null;
+
+function getWebContainer(): Promise<WebContainer> {
+    if (!webContainerBootPromise) {
+        webContainerBootPromise = WebContainer.boot();
+    }
+    return webContainerBootPromise;
+}
+
 export const useWebContainers = ({ templateData }: UseWebContainersProps): UseWebContainersReturn => {
     const [serverUrl, setServerUrl] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -24,14 +37,12 @@ export const useWebContainers = ({ templateData }: UseWebContainersProps): UseWe
 
     useEffect(() => {
         let mounted = true;
-        let localInstance: WebContainer | null = null;
 
         async function initWebContainer() {
             try {
-                const webContainerInstance = await WebContainer.boot();
+                const webContainerInstance = await getWebContainer();
                 if (!mounted) return;
 
-                localInstance = webContainerInstance;
                 setInstance(webContainerInstance);
                 setIsLoading(false);
             } catch (err) {
@@ -47,9 +58,10 @@ export const useWebContainers = ({ templateData }: UseWebContainersProps): UseWe
 
         return () => {
             mounted = false;
-            if (localInstance) {
-                localInstance.teardown();
-            }
+            // Intentionally no teardown here: WebContainer only supports a
+            // single boot per page session, and tearing down on Strict
+            // Mode's dev-only fake unmount breaks the next real mount.
+            // The instance is cleaned up when the page itself unloads.
         };
     }, []);
 
@@ -75,6 +87,7 @@ export const useWebContainers = ({ templateData }: UseWebContainersProps): UseWe
     const destroy = useCallback(async (): Promise<void> => {
         if (instance) {
             await instance.teardown();
+            webContainerBootPromise = null; // allow a future boot after explicit teardown
             setInstance(null);
             setServerUrl(null);
         }
