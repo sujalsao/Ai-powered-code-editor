@@ -18,9 +18,7 @@ export function ResizablePanelGroup({
   );
 }
 
-export function ResizablePanel(
-  props: ResizablePrimitive.PanelProps
-) {
+export function ResizablePanel(props: ResizablePrimitive.PanelProps) {
   return <ResizablePrimitive.Panel {...props} />;
 }
 
