@@ -20,11 +20,13 @@ import { TemplateFileTree } from '../../../../modules/playground/components/play
 import { useFileExplorer } from '../../../../modules/playground/hooks/useFileExplorer';
 import { TemplateFile } from '../../../../modules/playground/lib/path-to-json';
 import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
+    ResizableHandle,
+    ResizablePanel,
+    ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import PlaygroundEditor from '../../../../modules/playground/components/playground-editor';
+import WebContainerPreview from '../../../../modules/webcontainers/components/webcontainer-preview';
+import { useWebContainers } from '../../../../modules/webcontainers/hooks/usewebcontainers';
 
 const MainPlaygroundPage = () => {
     const { id } = useParams<{ id: string }>();
@@ -41,6 +43,14 @@ const MainPlaygroundPage = () => {
         openFile,
         updateFileContent,
     } = useFileExplorer();
+
+    const {
+        serverUrl,
+        isLoading: containerLoading,
+        error: containerError,
+        instance,
+        writeFileSync
+    } = useWebContainers({ templateData: templateData! });
 
     useEffect(() => {
         setPlaygroundId(id);
@@ -226,27 +236,33 @@ const MainPlaygroundPage = () => {
 
                                 <div className="flex-1">
                                     <ResizablePanelGroup orientation="horizontal" className="h-full">
-    <ResizablePanel defaultSize={isPreviewVisible ? 50 : 100}>
-        <PlaygroundEditor
-            activeFile={activeFile}
-            content={activeFile?.content ?? ""}
-            onContentChange={(value) =>
-                activefileId && updateFileContent(activefileId, value)
-            }
-        />
-    </ResizablePanel>
+                                        <ResizablePanel defaultSize={isPreviewVisible ? 50 : 100}>
+                                            <PlaygroundEditor
+                                                activeFile={activeFile}
+                                                content={activeFile?.content ?? ""}
+                                                onContentChange={(value) =>
+                                                    activefileId && updateFileContent(activefileId, value)
+                                                }
+                                            />
+                                        </ResizablePanel>
 
-    {isPreviewVisible && (
-        <>
-            <ResizableHandle />
-            <ResizablePanel defaultSize={50}>
-                <div className="h-full border-l p-4">
-                    Preview panel placeholder
-                </div>
-            </ResizablePanel>
-        </>
-    )}
-</ResizablePanelGroup>
+                                        {isPreviewVisible && (
+                                            <>
+                                                <ResizableHandle />
+                                                <ResizablePanel defaultSize={50}>
+                                                    <WebContainerPreview
+                                                        templateData={templateData}
+                                                        instance={instance}
+                                                        writeFileSync={writeFileSync}
+                                                        isLoading={containerLoading}
+                                                        error={containerError}
+                                                        serverUrl={serverUrl ?? ""}
+                                                        forceResetup={false}
+                                                    />
+                                                </ResizablePanel>
+                                            </>
+                                        )}
+                                    </ResizablePanelGroup>
                                 </div>
                             </div>
                         ) : (
