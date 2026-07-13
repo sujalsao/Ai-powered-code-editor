@@ -1,6 +1,7 @@
 "use client"
 import { useParams } from 'next/navigation';
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner';
 import { usePlayground } from '../../../../modules/playground/hooks/usePlaygound';
 import { SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
@@ -14,11 +15,11 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Bot, Save, Settings, FileText, X } from 'lucide-react';
+import { AlertCircle, Bot, Save, Settings, FileText, X, FolderOpen } from 'lucide-react';
 
 import { TemplateFileTree } from '../../../../modules/playground/components/playground-explorer';
 import { useFileExplorer } from '../../../../modules/playground/hooks/useFileExplorer';
-import { TemplateFile } from '../../../../modules/playground/lib/path-to-json';
+import { TemplateFile, TemplateFolder } from '../../../../modules/playground/lib/path-to-json';
 import {
     ResizableHandle,
     ResizablePanel,
@@ -27,11 +28,48 @@ import {
 import PlaygroundEditor from '../../../../modules/playground/components/playground-editor';
 import WebContainerPreview from '../../../../modules/webcontainers/components/webcontainer-preview';
 import { useWebContainers } from '../../../../modules/webcontainers/hooks/usewebcontainers';
+import { findFilePath } from '../../../../modules/playground/lib';
+
+// TODO: this is a placeholder — LoadingStep was referenced below but never defined
+// or imported anywhere in the original file. Replace with your real shared component
+// if one already exists elsewhere in the codebase.
+const LoadingStep = ({
+    currentStep,
+    step,
+    label,
+}: {
+    currentStep: number;
+    step: number;
+    label: string;
+}) => {
+    const isComplete = currentStep > step;
+    const isActive = currentStep === step;
+    return (
+        <div className="flex items-center gap-3 mb-3">
+            <div
+                className={`h-2 w-2 rounded-full ${
+                    isComplete ? "bg-green-500" : isActive ? "bg-blue-500 animate-pulse" : "bg-gray-300"
+                }`}
+            />
+            <span className={`text-sm ${isActive ? "font-medium" : "text-muted-foreground"}`}>{label}</span>
+        </div>
+    );
+};
 
 const MainPlaygroundPage = () => {
     const { id } = useParams<{ id: string }>();
     const [isPreviewVisible, setIsPreviewVisible] = useState(false);
-    const { playgroundData, templateData, isLoading, error } = usePlayground(id);
+
+    // NOTE: `saveTemplateData` wasn't defined anywhere in the original file but was
+    // used by the wrapped handlers below. Pulling it from usePlayground since that's
+    // where playgroundData/templateData/loading/error already live — move this
+    // destructure if saveTemplateData actually lives in a different hook.
+    // IMPORTANT: for the `newTemplateData || updatedTemplateData` check further down
+    // to typecheck, saveTemplateData's own definition (in usePlayground) must return
+    // Promise<TemplateFolder> (or similar) rather than Promise<void>. If it currently
+    // returns void, update it there so callers actually get the saved data back.
+    const { playgroundData, templateData, isLoading, error, saveTemplateData } = usePlayground(id);
+
     const {
         setTemplateData,
         setActiveFileId,
@@ -40,8 +78,16 @@ const MainPlaygroundPage = () => {
         closeAllFiles,
         closeFile,
         openFiles,
+        setOpenFiles,
         openFile,
         updateFileContent,
+
+        handleAddFile,
+        handleAddFolder,
+        handleDeleteFolder,
+        handleDeleteFile,
+        handleRenameFolder,
+        handleRenameFile,
     } = useFileExplorer();
 
     const {
@@ -51,6 +97,8 @@ const MainPlaygroundPage = () => {
         instance,
         writeFileSync
     } = useWebContainers({ templateData: templateData! });
+
+    const lastSyncedContent = useRef<Map<string, string>>(new Map());
 
     useEffect(() => {
         setPlaygroundId(id);
@@ -62,6 +110,71 @@ const MainPlaygroundPage = () => {
         }
     }, [templateData, setTemplateData, openFiles.length]);
 
+    // Wrapper functions that pass saveTemplateData through to the file-explorer handlers
+    const wrappedHandleAddFile = useCallback(
+        (newFile: TemplateFile, parentPath: string) => {
+            return handleAddFile(
+                newFile,
+                parentPath,
+                writeFileSync!,
+                instance,
+                saveTemplateData
+            );
+        },
+        [handleAddFile, writeFileSync, instance, saveTemplateData]
+    );
+
+    const wrappedHandleAddFolder = useCallback(
+        (newFolder: TemplateFolder, parentPath: string) => {
+            return handleAddFolder(newFolder, parentPath, instance, saveTemplateData);
+        },
+        [handleAddFolder, instance, saveTemplateData]
+    );
+
+    const wrappedHandleDeleteFile = useCallback(
+        (file: TemplateFile, parentPath: string) => {
+            return handleDeleteFile(file, parentPath, saveTemplateData);
+        },
+        [handleDeleteFile, saveTemplateData]
+    );
+
+    const wrappedHandleDeleteFolder = useCallback(
+        (folder: TemplateFolder, parentPath: string) => {
+            return handleDeleteFolder(folder, parentPath, saveTemplateData);
+        },
+        [handleDeleteFolder, saveTemplateData]
+    );
+
+    const wrappedHandleRenameFile = useCallback(
+        (
+            file: TemplateFile,
+            newFilename: string,
+            newExtension: string,
+            parentPath: string
+        ) => {
+            return handleRenameFile(
+                file,
+                newFilename,
+                newExtension,
+                parentPath,
+                saveTemplateData
+            );
+        },
+        [handleRenameFile, saveTemplateData]
+    );
+
+    const wrappedHandleRenameFolder = useCallback(
+        (folder: TemplateFolder, newFolderName: string, parentPath: string) => {
+            return handleRenameFolder(
+                folder,
+                newFolderName,
+                parentPath,
+                saveTemplateData
+            );
+        },
+        [handleRenameFolder, saveTemplateData]
+    );
+
     const activeFile = openFiles.find((f) => f.id === activefileId);
     const hasUnsavedChanges = openFiles.some((f) => f.hasUnsavedchanges);
 
@@ -69,30 +182,171 @@ const MainPlaygroundPage = () => {
         openFile(file);
     };
 
-    // TODO: wire these up to real create/delete/rename logic
-    const wrappedHandleAddFile = () => {};
-    const wrappedHandleAddFolder = () => {};
-    const wrappedHandleDeleteFile = () => {};
-    const wrappedHandleDeleteFolder = () => {};
-    const wrappedHandleRenameFile = () => {};
-    const wrappedHandleRenameFolder = () => {};
+    const handleSave = useCallback(
+        async (fileId?: string) => {
+            const targetFileId = fileId || activefileId;
+            if (!targetFileId) return;
 
-    // TODO: implement real save logic
-    const handleSave = () => {
-        if (!activeFile) return;
+            const fileToSave = openFiles.find((f) => f.id === targetFileId);
+            if (!fileToSave) return;
+
+            const latestTemplateData = useFileExplorer.getState().templateData;
+
+            // FIX: latestTemplateData is typed `TemplateFolder | null`, but
+            // findFilePath expects a non-null TemplateFolder. Guard here so
+            // TypeScript narrows the type for everything below.
+            if (!latestTemplateData) {
+                toast.error("Template data not available");
+                return;
+            }
+
+            try {
+                const filePath = findFilePath(fileToSave, latestTemplateData);
+                if (!filePath) {
+                    toast.error(
+                        `could not find path or file: ${fileToSave.filename}.${fileToSave.fileExtension}`
+                    );
+                    return;
+                }
+
+                const updatedTemplateData = JSON.parse(JSON.stringify(latestTemplateData));
+
+                // FIX: added an explicit return type annotation (`: any[]`) so this
+                // recursive function no longer implicitly resolves to `any`.
+                const applyContentUpdate = (items: any[]): any[] =>
+                    items.map((item) => {
+                        if ("folderName" in item) {
+                            return { ...item, items: applyContentUpdate(item.items) };
+                        } else if (
+                            item.filename === fileToSave.filename &&
+                            item.fileExtension === fileToSave.fileExtension
+                        ) {
+                            return { ...item, content: fileToSave.content };
+                        }
+                        return item;
+                    });
+                updatedTemplateData.items = applyContentUpdate(updatedTemplateData.items);
+
+                // Sync with WebContainer
+                if (writeFileSync) {
+                    await writeFileSync(filePath, fileToSave.content);
+                    lastSyncedContent.current.set(fileToSave.id, fileToSave.content);
+                    if (instance && instance.fs) {
+                        await instance.fs.writeFile(filePath, fileToSave.content);
+                    }
+                }
+
+                // FIX: this line only typechecks once saveTemplateData is declared
+                // (in usePlayground) to return Promise<TemplateFolder> rather than
+                // Promise<void>. If you can't change that hook right now, replace
+                // with:
+                  const newTemplateData = (await saveTemplateData(updatedTemplateData)) as TemplateFolder | undefined;
+                  setTemplateData(newTemplateData ?? updatedTemplateData);
+                
+
+                // Update open files
+                const updatedOpenFiles = openFiles.map((f) =>
+                    f.id === targetFileId
+                        ? {
+                              ...f,
+                              content: fileToSave.content,
+                              originalContent: fileToSave.content,
+                              hasUnsavedchanges: false,
+                          }
+                        : f
+                );
+                setOpenFiles(updatedOpenFiles);
+
+                toast.success(`Saved ${fileToSave.filename}.${fileToSave.fileExtension}`);
+            } catch (error) {
+                console.error("Error saving file:", error);
+                toast.error(`Failed to save ${fileToSave.filename}.${fileToSave.fileExtension}`);
+                throw error;
+            }
+        },
+        [
+            activefileId,
+            openFiles,
+            writeFileSync,
+            instance,
+            saveTemplateData,
+            setTemplateData,
+            setOpenFiles,
+        ]
+    );
+
+    const handleSaveAll = async () => {
+        const unsavedFiles = openFiles.filter((f) => f.hasUnsavedchanges);
+
+        if (unsavedFiles.length === 0) {
+            toast.info("No unsaved changes");
+            return;
+        }
+
+        try {
+            await Promise.all(unsavedFiles.map((f) => handleSave(f.id)));
+            toast.success(`Saved ${unsavedFiles.length} file(s)`);
+        } catch (error) {
+            toast.error("Failed to save some files");
+        }
     };
-    const handleSaveAll = () => {};
 
-    if (isLoading) {
-        return <div className="flex h-screen items-center justify-center">Loading...</div>;
-    }
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.ctrlKey && e.key === "s") {
+                e.preventDefault();
+                handleSave();
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [handleSave]);
 
     if (error) {
-        return <div className="flex h-screen items-center justify-center text-red-500">Error: {error}</div>;
+        return (
+            <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] p-4">
+                <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+                <h2 className="text-xl font-semibold text-red-600 mb-2">
+                    Something went wrong
+                </h2>
+                <p className="text-gray-600 mb-4">{error}</p>
+                <Button onClick={() => window.location.reload()} variant="destructive">
+                    Try Again
+                </Button>
+            </div>
+        );
     }
 
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] p-4">
+                <div className="w-full max-w-md p-6 rounded-lg shadow-sm border">
+                    <h2 className="text-xl font-semibold mb-6 text-center">
+                        Loading Playground
+                    </h2>
+                    <div className="mb-8">
+                        <LoadingStep currentStep={1} step={1} label="Loading playground data" />
+                        <LoadingStep currentStep={2} step={2} label="Setting up environment" />
+                        <LoadingStep currentStep={3} step={3} label="Ready to code" />
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // No template data
     if (!templateData) {
-        return <div className="flex h-screen items-center justify-center">No template data available</div>;
+        return (
+            <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] p-4">
+                <FolderOpen className="h-12 w-12 text-amber-500 mb-4" />
+                <h2 className="text-xl font-semibold text-amber-600 mb-2">
+                    No template data available
+                </h2>
+                <Button onClick={() => window.location.reload()} variant="outline">
+                    Reload Template
+                </Button>
+            </div>
+        );
     }
 
     return (
