@@ -29,6 +29,7 @@ import PlaygroundEditor from '../../../../modules/playground/components/playgrou
 import WebContainerPreview from '../../../../modules/webcontainers/components/webcontainer-preview';
 import { useWebContainers } from '../../../../modules/webcontainers/hooks/usewebcontainers';
 import { findFilePath } from '../../../../modules/playground/lib';
+import ToggleAI from '../../../../modules/playground/components/toggle-ai';
 
 // TODO: this is a placeholder — LoadingStep was referenced below but never defined
 // or imported anywhere in the original file. Replace with your real shared component
@@ -58,7 +59,7 @@ const LoadingStep = ({
 
 const MainPlaygroundPage = () => {
     const { id } = useParams<{ id: string }>();
-    const [isPreviewVisible, setIsPreviewVisible] = useState(false);
+    const [isPreviewVisible, setIsPreviewVisible] = useState(true);
 
     // NOTE: `saveTemplateData` wasn't defined anywhere in the original file but was
     // used by the wrapped handlers below. Pulling it from usePlayground since that's
@@ -407,17 +408,13 @@ const MainPlaygroundPage = () => {
                                         </Button>
                                     </TooltipTrigger>
                                     <TooltipContent>Save All (Ctrl+Shift+S)</TooltipContent>
-                                </Tooltip>
+                                </Tooltip>                                
 
-                                {/* TODO: implement AI suggestions toggle once that feature is built */}
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button size="sm" variant="outline" disabled>
-                                            <Bot className="h-4 w-4" />
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>AI Suggestions (coming soon)</TooltipContent>
-                                </Tooltip>
+                                <ToggleAI
+                                isEnabled={true}
+                                onToggle={()=>{}}
+                                suggestionLoading={false}
+                                />
 
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
