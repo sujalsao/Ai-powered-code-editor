@@ -15,7 +15,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertCircle, Bot, Save, Settings, FileText, X, FolderOpen } from 'lucide-react';
+import { AlertCircle, Save, Settings, FileText, X, FolderOpen } from 'lucide-react';
 
 import { TemplateFileTree } from '../../../../modules/playground/components/playground-explorer';
 import { useFileExplorer } from '../../../../modules/playground/hooks/useFileExplorer';
@@ -30,6 +30,7 @@ import WebContainerPreview from '../../../../modules/webcontainers/components/we
 import { useWebContainers } from '../../../../modules/webcontainers/hooks/usewebcontainers';
 import { findFilePath } from '../../../../modules/playground/lib';
 import ToggleAI from '../../../../modules/playground/components/toggle-ai';
+import { useAISuggestions } from '../../../../modules/playground/hooks/useAIsuggestion';
 
 // TODO: this is a placeholder — LoadingStep was referenced below but never defined
 // or imported anywhere in the original file. Replace with your real shared component
@@ -70,6 +71,8 @@ const MainPlaygroundPage = () => {
     // Promise<TemplateFolder> (or similar) rather than Promise<void>. If it currently
     // returns void, update it there so callers actually get the saved data back.
     const { playgroundData, templateData, isLoading, error, saveTemplateData } = usePlayground(id);
+
+    const aiSuggestions = useAISuggestions();
 
     const {
         setTemplateData,
@@ -411,9 +414,9 @@ const MainPlaygroundPage = () => {
                                 </Tooltip>                                
 
                                 <ToggleAI
-                                isEnabled={true}
-                                onToggle={()=>{}}
-                                suggestionLoading={false}
+                                isEnabled={aiSuggestions.isEnabled}
+                                onToggle={aiSuggestions.toggleEnabled}
+                                suggestionLoading={aiSuggestions.isLoading}
                                 />
 
                                 <DropdownMenu>
@@ -494,6 +497,12 @@ const MainPlaygroundPage = () => {
                                                 onContentChange={(value) =>
                                                     activefileId && updateFileContent(activefileId, value)
                                                 }
+                                                suggestion={aiSuggestions.suggestion}
+                                                suggestionLoading={aiSuggestions.isLoading}
+                                                suggestionPosition={aiSuggestions.position}
+                                                onAcceptSuggestion={(editor,monaco)=>aiSuggestions.acceptSuggestion(editor,monaco)}
+                                                onRejectSuggestion={(editor)=>aiSuggestions.rejectSuggestion(editor)}
+                                                onTriggerSuggestion={(type,editor)=>aiSuggestions.fetchSuggestion(type,editor)}
                                             />
                                         </ResizablePanel>
 
