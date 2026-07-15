@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 
 interface AISuggestionState {
   suggestion: string | null;
@@ -25,6 +25,9 @@ export const useAISuggestions = (): UseAISuggestionsReturn => {
     isEnabled: true,
   });
 
+  // Tracks the in-flight request so we can cancel it if a newer one starts
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const toggleEnabled = useCallback(() => {
     setState((prev) => ({ ...prev, isEnabled: !prev.isEnabled }));
   }, []);
@@ -39,12 +42,18 @@ export const useAISuggestions = (): UseAISuggestionsReturn => {
 
     let shouldFetch = false;
     setState((currentState) => {
-      if (!currentState.isEnabled) return currentState;
+      // Don't queue a new request if one is already in flight
+      if (!currentState.isEnabled || currentState.isLoading) return currentState;
       shouldFetch = true;
       return { ...currentState, isLoading: true };
     });
 
     if (!shouldFetch) return;
+
+    // Cancel any stale request just in case, then start a fresh controller
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     try {
       const payload = {
@@ -54,10 +63,11 @@ export const useAISuggestions = (): UseAISuggestionsReturn => {
         suggestionType: type,
       };
 
-      const response = await fetch("/api/code-suggestions", {
+      const response = await fetch("/api/code-completion", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -81,7 +91,12 @@ export const useAISuggestions = (): UseAISuggestionsReturn => {
         console.warn("No suggestion received from API.");
         setState((prev) => ({ ...prev, isLoading: false }));
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === "AbortError") {
+        // Expected when we cancel a stale request — don't clear isLoading here,
+        // the newer request that superseded this one owns that responsibility.
+        return;
+      }
       console.error("Error fetching code suggestion", error);
       setState((prev) => ({ ...prev, isLoading: false }));
     }
