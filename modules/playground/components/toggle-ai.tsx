@@ -36,7 +36,7 @@ import {
 import React from "react";
 import { cn } from "@/lib/utils";
 
-
+import { AIChatSidePanel } from "../../ai-chat/components/ai-chat-sidebarpanel";
 interface ToggleAIProps {
   isEnabled: boolean;
   onToggle: (value: boolean) => void;
@@ -190,7 +190,11 @@ const ToggleAI: React.FC<ToggleAIProps> = ({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-
+<AIChatSidePanel
+isOpen={isChatOpen}
+onClose={()=>setIsChatOpen(false)}
+theme="dark"
+/>
     </>
   );
 };
