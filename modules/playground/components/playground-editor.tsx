@@ -347,10 +347,8 @@ export const PlaygroundEditor = ({
     })
 
     // CRITICAL: Override Tab key with high priority and prevent default Monaco behavior
-    if (tabCommandRef.current) {
-      tabCommandRef.current.dispose()
-    }
-
+    // NOTE: editor.addCommand() returns a command ID string, not a disposable object,
+    // so there is nothing to dispose here before reassigning it.
     tabCommandRef.current = editor.addCommand(
       monaco.KeyCode.Tab,
       () => {
@@ -514,10 +512,8 @@ export const PlaygroundEditor = ({
         inlineCompletionProviderRef.current.dispose()
         inlineCompletionProviderRef.current = null
       }
-      if (tabCommandRef.current) {
-        tabCommandRef.current.dispose()
-        tabCommandRef.current = null
-      }
+      
+      tabCommandRef.current = null
     }
   }, [])
 
