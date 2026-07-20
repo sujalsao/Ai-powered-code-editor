@@ -77,6 +77,18 @@ export const useAISuggestions = (): UseAISuggestionsReturn => {
       const data = await response.json();
 
       if (data.suggestion) {
+        // Discard stale suggestion if the cursor moved while we were waiting
+        const livePosition = editor.getPosition();
+        const cursorMoved =
+          !livePosition ||
+          livePosition.lineNumber !== cursorPosition.lineNumber ||
+          livePosition.column !== cursorPosition.column;
+
+        if (cursorMoved) {
+          setState((prev) => ({ ...prev, isLoading: false }));
+          return;
+        }
+
         const suggestionText = data.suggestion.trim();
         setState((prev) => ({
           ...prev,
