@@ -1,8 +1,6 @@
-import { scanTemplateDirectory } from "../../../../../modules/playground/lib/path-to-json";
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { templatePaths } from "@/lib/template";
-import path from "path";
+import { TEMPLATES_BUNDLE } from "@/lib/templates-bundle";
 
 export async function GET(
     req: NextRequest,
@@ -18,22 +16,12 @@ export async function GET(
         return Response.json({ error: "Playground not found" }, { status: 404 });
     }
 
-    const templateKey = playground.template as keyof typeof templatePaths;
-    const templatePath = templatePaths[templateKey];
-    if (!templatePath) {
-        return Response.json({ error: "Template not found" }, { status: 404 });
+    const templateKey = playground.template;
+    const templateData = TEMPLATES_BUNDLE[templateKey] || TEMPLATES_BUNDLE["REACT"];
+
+    if (!templateData) {
+        return Response.json({ error: `Template ${templateKey} not found` }, { status: 404 });
     }
 
-    // Strip leading slash if present for cross-platform path resolution
-    const cleanPath = templatePath.startsWith("/") ? templatePath.slice(1) : templatePath;
-    const inputPath = path.join(process.cwd(), cleanPath);
-
-    try {
-        // Directly scan directory into memory — zero disk writes needed on Vercel
-        const result = await scanTemplateDirectory(inputPath);
-        return Response.json({ success: true, templateJson: result }, { status: 200 });
-    } catch (error) {
-        console.error("Error reading template directory:", error);
-        return Response.json({ error: "Error reading template file" }, { status: 500 });
-    }
+    return Response.json({ success: true, templateJson: templateData }, { status: 200 });
 }
