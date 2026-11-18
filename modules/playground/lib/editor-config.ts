@@ -43,8 +43,6 @@ export function getEditorLanguage(extension: string): string {
       return "css";
 
     case "scss":
-      return "scss";
-
     case "sass":
       return "scss";
 
@@ -104,4 +102,31 @@ export function configureMonaco(monaco: Monaco) {
   });
 
   monaco.editor.setTheme("custom-dark");
+
+  // Configure TypeScript / JSX support so Monaco doesn't flag React JSX as errors
+  if (monaco.languages?.typescript) {
+    monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+      jsx: monaco.languages.typescript.JsxEmit.ReactJSX,
+      target: monaco.languages.typescript.ScriptTarget.Latest,
+      allowNonTsExtensions: true,
+      allowJs: true,
+    });
+
+    monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
+      jsx: monaco.languages.typescript.JsxEmit.ReactJSX,
+      allowNonTsExtensions: true,
+      allowJs: true,
+    });
+
+    // Disable missing type / module semantic diagnostics in browser sandbox
+    monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+      noSemanticValidation: true,
+      noSyntaxValidation: false,
+    });
+
+    monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+      noSemanticValidation: true,
+      noSyntaxValidation: false,
+    });
+  }
 }

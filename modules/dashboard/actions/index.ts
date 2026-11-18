@@ -39,14 +39,16 @@ export const toggleStarMarked= async(playgroundId:string, isChecked:boolean)=>{
 
 export const getAllPlaygroundForUser = async () => {
     const user = await currentUser();
+    if (!user) return [];
     try {
         const playground = await db.playground.findMany({
             where: { userId: user?.id },
             include: { user: true, Starmark: {where:{userId:user?.id! },select:{isMarked:true}}}
         });
-        return playground;
+        return playground || [];
     } catch (error) {
-        console.log(error);
+        console.error("Error fetching playgrounds:", error);
+        return [];
     }
 }
 

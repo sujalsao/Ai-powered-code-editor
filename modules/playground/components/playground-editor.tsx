@@ -348,7 +348,10 @@ export const PlaygroundEditor = ({
 
     // CRITICAL: Override Tab key with high priority and prevent default Monaco behavior
     if (tabCommandRef.current) {
-      tabCommandRef.current.dispose()
+      if (typeof tabCommandRef.current.dispose === "function") {
+        tabCommandRef.current.dispose()
+      }
+      tabCommandRef.current = null
     }
 
     tabCommandRef.current = editor.addCommand(
@@ -515,7 +518,9 @@ export const PlaygroundEditor = ({
         inlineCompletionProviderRef.current = null
       }
       if (tabCommandRef.current) {
-        tabCommandRef.current.dispose()
+        if (typeof tabCommandRef.current.dispose === "function") {
+          tabCommandRef.current.dispose()
+        }
         tabCommandRef.current = null
       }
     }
@@ -543,6 +548,7 @@ export const PlaygroundEditor = ({
         height="100%"
         value={content}
         onChange={(value) => onContentChange(value || "")}
+        beforeMount={configureMonaco}
         onMount={handleEditorDidMount}
         language={activeFile ? getEditorLanguage(activeFile.fileExtension || "") : "plaintext"}
         // @ts-ignore

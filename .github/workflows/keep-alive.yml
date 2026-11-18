@@ -1,0 +1,20 @@
+name: Keep Database & App Alive
+
+on:
+  schedule:
+    # Runs every 3 days at 04:00 UTC (keeps MongoDB Atlas from ever pausing due to inactivity)
+    - cron: '0 4 */3 * *'
+  workflow_dispatch: # Allows manual trigger from the GitHub Actions tab anytime
+
+jobs:
+  ping:
+    name: Ping Health Endpoint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Live Site
+        env:
+          APP_URL: ${{ vars.PRODUCTION_URL || 'https://ai-code-editor.vercel.app' }}
+        run: |
+          echo "Pinging health endpoint at: $APP_URL/api/health"
+          RESPONSE=$(curl -sL --max-time 30 "$APP_URL/api/health" || true)
+          echo "Server Response: $RESPONSE"
