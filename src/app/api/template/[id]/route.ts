@@ -1,19 +1,8 @@
-import { readTemplateStructureFromJson, saveTemplateStructureToJson } from "../../../../../modules/playground/lib/path-to-json";
+import { scanTemplateDirectory } from "../../../../../modules/playground/lib/path-to-json";
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { templatePaths } from "@/lib/template";
 import path from "path";
-import fs from "fs/promises";
-
-function validateJsonStrucutre(data: unknown): boolean {
-    try {
-        JSON.parse(JSON.stringify(data));
-        return true;
-    } catch (error) {
-        console.error("Invalid JSON structure:", error);
-        return false;
-    }
-}
 
 export async function GET(
     req: NextRequest,
@@ -35,21 +24,16 @@ export async function GET(
         return Response.json({ error: "Template not found" }, { status: 404 });
     }
 
-    const inputPath = path.join(process.cwd(), templatePath);
-    const outputFile = path.join(process.cwd(), `output/${templateKey}.json`);
+    // Strip leading slash if present for cross-platform path resolution
+    const cleanPath = templatePath.startsWith("/") ? templatePath.slice(1) : templatePath;
+    const inputPath = path.join(process.cwd(), cleanPath);
 
     try {
-        await saveTemplateStructureToJson(inputPath, outputFile);
-        const result = await readTemplateStructureFromJson(outputFile);
-
-        if (!validateJsonStrucutre(result)) {
-            return Response.json({ error: "Invalid JSON structure" }, { status: 500 });
-        }
-
-        await fs.unlink(outputFile);
+        // Directly scan directory into memory — zero disk writes needed on Vercel
+        const result = await scanTemplateDirectory(inputPath);
         return Response.json({ success: true, templateJson: result }, { status: 200 });
     } catch (error) {
-        console.error("Error reading template file:", error);
+        console.error("Error reading template directory:", error);
         return Response.json({ error: "Error reading template file" }, { status: 500 });
     }
 }

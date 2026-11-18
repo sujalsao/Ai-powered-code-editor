@@ -1,13 +1,17 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  images:{
-    remotePatterns:[
+  // Ensure template starter directories are bundled with the serverless functions on Vercel
+  outputFileTracingIncludes: {
+    '/api/template/*': ['./vibecode-starters/**/*'],
+  },
+  images: {
+    remotePatterns: [
       {
-        protocol:"https",
-        hostname:"*",
-        port:'',
-        pathname:"/**"
+        protocol: "https",
+        hostname: "*",
+        port: '',
+        pathname: "/**"
       }
     ]
   },
